@@ -76,23 +76,51 @@ class ValDatasetFromFolder(Dataset):
         return len(self.image_filenames)
 
 
+#  加载测试集中的图像数据 同训练集
 class TestDatasetFromFolder(Dataset):
     def __init__(self, dataset_dir, upscale_factor):
         super(TestDatasetFromFolder, self).__init__()
-        self.lr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/data/'
-        self.hr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/target/'
+        self.lr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/data/'  # 构建低分辨率图像文件路径
+        self.hr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/target/'  # 构建高分辨率图像文件路径
         self.upscale_factor = upscale_factor
+        # 获取两个路径下的图像文件名，并保存在lr_filenames和hr_filenames列表中。
         self.lr_filenames = [join(self.lr_path, x) for x in listdir(self.lr_path) if is_image_file(x)]
         self.hr_filenames = [join(self.hr_path, x) for x in listdir(self.hr_path) if is_image_file(x)]
 
     def __getitem__(self, index):
+        # 获取给定索引的图像数据
         image_name = self.lr_filenames[index].split('/')[-1]
-        lr_image = Image.open(self.lr_filenames[index])
-        w, h = lr_image.size
-        hr_image = Image.open(self.hr_filenames[index])
-        hr_scale = Resize((self.upscale_factor * h, self.upscale_factor * w), interpolation=Image.BICUBIC)
-        hr_restore_img = hr_scale(lr_image)
+        lr_image = Image.open(self.lr_filenames[index])  # 打开低分辨率图像文件
+        w, h = lr_image.size  # 获取低分辨率图像的宽度和高度
+        hr_image = Image.open(self.hr_filenames[index])  # 打开高分辨率图像文件
+        hr_scale_1 = Resize((h // self.upscale_factor, w // self.upscale_factor), interpolation=Image.BICUBIC)
+        lr_image = hr_scale_1(lr_image)
+        hr_scale = Resize((self.upscale_factor * h, self.upscale_factor * w), interpolation=Image.BICUBIC)  # 缩放高分辨率图像
+        hr_restore_img = hr_scale(lr_image)  # 缩放得到还原后的高分辨率图像
+        # 将图像文件名、低分辨率图像、还原后的高分辨率图像和原始高分辨率图像转换为张量并返回
         return image_name, ToTensor()(lr_image), ToTensor()(hr_restore_img), ToTensor()(hr_image)
 
     def __len__(self):
         return len(self.lr_filenames)
+
+
+# class TestDatasetFromFolder(Dataset):
+#     def __init__(self, dataset_dir, upscale_factor):
+#         super(TestDatasetFromFolder, self).__init__()
+#         self.lr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/data/'
+#         self.hr_path = dataset_dir + '/SRF_' + str(upscale_factor) + '/target/'
+#         self.upscale_factor = upscale_factor
+#         self.lr_filenames = [join(self.lr_path, x) for x in listdir(self.lr_path) if is_image_file(x)]
+#         self.hr_filenames = [join(self.hr_path, x) for x in listdir(self.hr_path) if is_image_file(x)]
+#
+#     def __getitem__(self, index):
+#         image_name = self.lr_filenames[index].split('/')[-1]
+#         lr_image = Image.open(self.lr_filenames[index])
+#         w, h = lr_image.size
+#         hr_image = Image.open(self.hr_filenames[index])
+#         hr_scale = Resize((self.upscale_factor * h, self.upscale_factor * w), interpolation=Image.BICUBIC)
+#         hr_restore_img = hr_scale(lr_image)
+#         return image_name, ToTensor()(lr_image), ToTensor()(hr_restore_img), ToTensor()(hr_image)
+#
+#     def __len__(self):
+#         return len(self.lr_filenames)
